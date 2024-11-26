@@ -1,0 +1,12 @@
+fastapi
+paho-mqtt
+pyjwt
+passlib[argon2]
+python-dotenv
+sqlmodel
+pydantic_settings
+debugpy
+mysql-connector-python
+psycopg2-binary
+uvicorn
+dependency-injector
