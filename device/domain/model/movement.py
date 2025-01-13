@@ -11,10 +11,12 @@ class Movement(SQLModel, table=True):
 
     id: Optional[int] = Field(primary_key=True)
     name: str = Field(nullable=False)
-    coord_x: Optional[int] = Field(nullable=False, default=0)
-    coord_y: Optional[int] = Field(nullable=False, default=0)
+    coordinates: Optional[str] = Field(nullable=True)
     robot_id: Optional[int] = Field(foreign_key="robots.id", nullable=False)
 
     # Relaciones
     robot: Optional["Robot"] = Relationship(back_populates="movements")
     positions: List["Position"] = Relationship(back_populates="movement")
+
+    # coord_x: Optional[int] = Field(nullable=False, default=0)
+    # coord_y: Optional[int] = Field(nullable=False, default=0)

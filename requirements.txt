@@ -1,4 +1,7 @@
 fastapi
+fastapi-mail 
+python-multipart 
+jinja2
 paho-mqtt
 pyjwt
 passlib[argon2]
@@ -10,3 +13,5 @@ mysql-connector-python
 psycopg2-binary
 uvicorn
 dependency-injector
+cloudinary
+

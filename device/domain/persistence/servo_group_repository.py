@@ -1,6 +1,5 @@
 from typing import List, Optional
 from sqlmodel import select
-from device.domain.model.movement import Movement
 from core.database import getSession
 from core.base_repository import BaseRepository
 from device.domain.model.robot import Robot
@@ -13,7 +12,8 @@ class ServoGroupRepository(BaseRepository[ServoGroup]):
         
     def findAllByRobotId(self, robotId: int) -> List[ServoGroup]:
         with getSession() as session:
-            statement = select(ServoGroup).where(ServoGroup.robot_id == robotId)
+            statement = select(ServoGroup).where(ServoGroup.robot_id == robotId).order_by(ServoGroup.column,
+                                                                                          ServoGroup.sequence)
             return session.exec(statement).all()
         
     def findByRobotIdAndName(self, robotId: int, servoGroupName: str) -> Optional[ServoGroup]:
@@ -30,38 +30,46 @@ class ServoGroupRepository(BaseRepository[ServoGroup]):
             max_sequence = session.exec(statement).first()
             return max_sequence if max_sequence else 0
 
-    def decrementSequenceAfter(self, position: ServoGroup):
+    def decrementSequenceAfter(self, servoGroup: ServoGroup):
         with getSession() as session:
-            statement = select(ServoGroup).where(ServoGroup.sequence > position.sequence, ServoGroup.robot_id == position.robot_id)
-            positions = session.exec(statement).all()
-            for position in positions:
-                position.sequence -= 1
-                session.add(position)
+            statement = select(ServoGroup).where((ServoGroup.robot_id == servoGroup.robot_id) & 
+                                                 (ServoGroup.column == servoGroup.column) &
+                                                 (ServoGroup.sequence > servoGroup.sequence))
+            servoGroups = session.exec(statement).all()
+            for existingServoGroup in servoGroups:
+                existingServoGroup.sequence -= 1
+                session.add(existingServoGroup)
             session.commit()
 
-    def increaseSequence(self, position: Position) -> Position:
+    def increaseSequence(self, servoGroup: ServoGroup) -> ServoGroup:
         with getSession() as session:
-            nextPosition = session.exec(select(Position).where(Position.movement_id == position.movement_id, Position.sequence == position.sequence + 1)).first()
+            statement = select(ServoGroup).where((ServoGroup.robot_id == servoGroup.robot_id) & 
+                                                 (ServoGroup.column == servoGroup.column) &
+                                                 (ServoGroup.sequence == servoGroup.sequence + 1))
+            nextPosition = session.exec(statement).first()
             if nextPosition:
-                nextPosition.sequence, position.sequence = position.sequence, nextPosition.sequence
-                session.add(position)
+                nextPosition.sequence, servoGroup.sequence = servoGroup.sequence, nextPosition.sequence
+                session.add(servoGroup)
                 session.add(nextPosition)
                 session.commit()
-                session.refresh(position)
+                session.refresh(servoGroup)
                 session.refresh(nextPosition)
-            return position
+            return servoGroup
 
-    def decreaseSequence(self, position: Position) -> Position:
+    def decreaseSequence(self, servoGroup: ServoGroup) -> ServoGroup:
         with getSession() as session:
-            prevPosition = session.exec(select(Position).where(Position.movement_id == position.movement_id, Position.sequence == position.sequence - 1)).first()
+            statement = select(ServoGroup).where((ServoGroup.robot_id == servoGroup.robot_id) & 
+                                                 (ServoGroup.column == servoGroup.column) &
+                                                 (ServoGroup.sequence == servoGroup.sequence - 1))
+            prevPosition = session.exec(statement).first()
             if prevPosition:
-                prevPosition.sequence, position.sequence = position.sequence, prevPosition.sequence
-                session.add(position)
+                prevPosition.sequence, servoGroup.sequence = servoGroup.sequence, prevPosition.sequence
+                session.add(servoGroup)
                 session.add(prevPosition)
                 session.commit()
-                session.refresh(position)
+                session.refresh(servoGroup)
                 session.refresh(prevPosition)
-            return position
+            return servoGroup
         
     # Metodos para obtener objetos padres    
     def findMyUserById(self, servoGroupId: int) -> User:

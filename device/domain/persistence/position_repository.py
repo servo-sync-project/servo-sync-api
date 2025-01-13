@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlmodel import select
 from core.base_repository import BaseRepository
 from device.domain.model.movement import Movement
@@ -10,6 +11,12 @@ class PositionRepository(BaseRepository[Position]):
     def __init__(self):
         super().__init__(Position)  # Pasa el modelo Position al BaseRepository
     
+    # def findByMovementIdAndSequence(self, movementId: int, sequence: int) -> Optional[Position]:
+    #     with getSession() as session:
+    #         statement = select(Position).where((Position.movement_id == movementId)&
+    #                                            (Position.sequence == sequence))
+    #         return session.exec(statement).first()
+        
     def findAllByMovementId(self, movementId: int) -> list[Position]:
         with getSession() as session:
             statement = select(Position).where(Position.movement_id == movementId).order_by(Position.sequence)

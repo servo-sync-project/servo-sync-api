@@ -4,5 +4,9 @@ from security.resource.response.user_response import UserResponse
 
 class AuthResponse(BaseModel):
     access_token: str
-    token_type: str
+    unique_token: str
+    user: UserResponse
+
+class AuthResponseForRefresh(BaseModel):
+    access_token: str
     user: UserResponse

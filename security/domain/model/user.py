@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+from sqlalchemy import Column, DateTime
 from sqlmodel import Relationship, SQLModel, Field
 from enum import Enum
 from typing import TYPE_CHECKING, List, Optional
@@ -12,12 +14,20 @@ class Role(str, Enum):
 class User(SQLModel, table=True):
     __tablename__ = "users"
     id: Optional[int] = Field(primary_key=True)
-    image_url: str = Field(nullable=False)
+    verification_uuid: Optional[str] = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
+    unique_token: Optional[str] = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
     email: str = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
     username: str = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
-    full_name: str = Field(nullable=False)
     hashed_password: str = Field(nullable=False)
-    enabled: Optional[bool] = Field(default=False)
-    role: Optional[Role] = Field(default=Role.USER)
+    email_verified_at: Optional[datetime] = Field(nullable=True)
+    uuid_expires_at: Optional[datetime] = Field(nullable=False)
+    token_expires_at: Optional[datetime] = Field(nullable=False)
+    created_at: Optional[datetime] = Field(nullable=False, default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: Optional[datetime] = Field(nullable=False, default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc).replace(tzinfo=None)})
+    role: Optional[Role] = Field(nullable=False, default=Role.USER)
 
     robots: List["Robot"] = Relationship(back_populates="user")
+
+    # ok, ahora tengo unique_uid  y email_verified_at para la habilitar la cuenta, ademas de verification_code para cambiar la contraseña, que otros nombres podria ponerles para que sean mas coherentes a su funcion?
+    # unique_password_reset_uid: Optional[str] = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
+    # unique_email_verification_uid: Optional[str] = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})

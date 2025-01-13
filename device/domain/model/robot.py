@@ -1,6 +1,9 @@
+from datetime import datetime, timezone
+import json
 from sqlmodel import Relationship, SQLModel, Field
 from typing import TYPE_CHECKING, List, Optional
 
+from device.domain.model.position_json import PositionJson
 from device.domain.model.servo_group import ServoGroup
 
 if TYPE_CHECKING:
@@ -13,10 +16,13 @@ class Robot(SQLModel, table=True):
     id: Optional[int] = Field(primary_key=True)
     unique_uid: Optional[str] = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
     botname: str = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
-    image_url: str = Field(nullable=False)
     description: str = Field(nullable=False)
-    initial_position: str = Field(nullable=False)
+    image_url: Optional[str] = Field(nullable=True)
+    config_image_url: Optional[str] = Field(nullable=True)
+    initial_position: Optional[str] = Field(nullable=True)
+    current_position: Optional[str] = Field(nullable=True)
     is_connected_broker: Optional[bool] = Field(nullable=False, default=False)
+    created_at: Optional[datetime] = Field(nullable=False, default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     user_id: Optional[int] = Field(foreign_key="users.id", nullable=False)
     
     

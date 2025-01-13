@@ -1,14 +1,13 @@
+import json
 from fastapi import APIRouter, Depends
-from device.mapping.movement_mapper import MovementMapper
-from device.resource.request.movement_request import CreateMovementRequest, UpdateMovementRequest
-from device.resource.response.movement_response import MovementResponse
+from dependency_injector.wiring import inject, Provide
+from device.mapping.servo_group_mapper import ServoGroupMapper
+from device.resource.request.servo_group_request import CreateServoGroupRequest, UpdateServoGroupNameRequest, UpdateServoGroupNumServosRequest
+from device.resource.response.servo_group_response import ServoGroupResponse
+from device.service.servo_group_service import ServoGroupService
 from security.domain.model.user import Role
 from crosscutting.authorization import authorizeRoles
 from core.container import Container
-
-# Inyectar el contenedor
-container = Container()
-movementService = container.movementService()
 
 # Definir el router con prefijo y etiqueta
 router = APIRouter(
@@ -16,25 +15,59 @@ router = APIRouter(
     tags=["servo-groups"]
 )
 
-# Crear movimiento
-@router.post("/", response_model=MovementResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-async def createMovement(request: CreateMovementRequest):
-    movement = movementService.create(MovementMapper.createRequestToModel(request))
-    return MovementMapper.modelToResponse(movement)
+@router.post("/", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def createServoGroup(request: CreateServoGroupRequest,
+                           servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroup = servoGroupService.create(ServoGroupMapper.createRequestToModel(request))
+    return ServoGroupMapper.modelToResponse(servoGroup)
 
-@router.get("/{servoGroupId}", response_model=list[MovementResponse], dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-async def getMovementById(robotId: int):
-    movements = movementService.getById(robotId)
-    return [MovementMapper.modelToResponse(movement) for movement in movements]
+@router.get("/robot/{robotId}", response_model=list[ServoGroupResponse], dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def getAllServoGroupsByRobotId(robotId: int,
+                            servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroups = servoGroupService.getAllByRobotId(robotId)
+    return [ServoGroupMapper.modelToResponse(servoGroup) for servoGroup in servoGroups]
 
-# Actualizar movimiento por ID
-@router.put("/{servoGroupId}", response_model=MovementResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-async def updateMovementById(movementId: int, request: UpdateMovementRequest):
-    movement = movementService.updateById(movementId, request.name, request.coord_x, request.coord_y)
-    return MovementMapper.modelToResponse(movement)
+@router.get("/{servoGroupId}", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def getServoGroupById(servoGroupId: int,
+                            servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroup = servoGroupService.getById(servoGroupId)
+    return ServoGroupMapper.modelToResponse(servoGroup)
 
-# Eliminar movimiento por ID
-@router.delete("/{servoGroupId}", response_model=dict, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-async def deleteMovementById(movementId: int):
-    isDeleted = movementService.deleteById(movementId)
-    return {"is_deleted": isDeleted}
+@router.put("/{servoGroupId}/increase", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def increaseServoGroupSequenceById(servoGroupId: int,
+                                         servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroup = servoGroupService.increaseSequenceById(servoGroupId)
+    return ServoGroupMapper.modelToResponse(servoGroup)
+
+@router.put("/{servoGroupId}/decrease", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def decreaseServoGroupSequenceById(servoGroupId: int,
+                                         servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroup = servoGroupService.decreaseSequenceById(servoGroupId)
+    return ServoGroupMapper.modelToResponse(servoGroup)
+
+@router.put("/{servoGroupId}/name", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def updateServoGroupNameById(servoGroupId: int, 
+                                   request: UpdateServoGroupNameRequest,
+                                   servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroup = servoGroupService.updateNameById(servoGroupId, request.name)
+    return ServoGroupMapper.modelToResponse(servoGroup)
+
+@router.put("/{servoGroupId}/num-servos", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def updateServoGroupNumServosById(servoGroupId: int, 
+                               request: UpdateServoGroupNumServosRequest,
+                               servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    servoGroup = servoGroupService.updateNumServosById(servoGroupId, request.num_servos)
+    return ServoGroupMapper.modelToResponse(servoGroup)
+
+@router.delete("/{servoGroupId}", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def deleteServoGroupById(servoGroupId: int,
+                               servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
+    return servoGroupService.deleteById(servoGroupId)

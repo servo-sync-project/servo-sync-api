@@ -9,6 +9,16 @@ class UserRepository(BaseRepository[User]):
     def __init__(self):
         super().__init__(User)  # Pasa el modelo User al BaseRepository
 
+    def findByUniqueToken(self, uniqueToken: str) -> Optional[User]:
+        with getSession() as session:
+            statement = select(User).where(User.unique_token == uniqueToken)
+            return session.exec(statement).first()
+        
+    def findByVerificationUuid(self, verificationUuid: str) -> Optional[User]:
+        with getSession() as session:
+            statement = select(User).where(User.verification_uuid == verificationUuid)
+            return session.exec(statement).first()
+        
     def findByUsername(self, username: str) -> Optional[User]:
         with getSession() as session:
             statement = select(User).where(User.username == username)

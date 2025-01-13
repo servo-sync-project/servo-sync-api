@@ -28,16 +28,30 @@ class PositionService:
         return position
     
     def getAllByMovementId(self, movementId: int):
-        position = self.repository.findAllByMovementId(movementId)
-        if not position:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No positions found")
-        return position
+        return self.repository.findAllByMovementId(movementId)
     
-    def updateById(self, positionId: int, newPosition: Position):
+    def updateById(self, positionId: int, newDelay: int, newAngles: str):
         positionToUpdate = self.getById(positionId)
-        positionToUpdate.delay = newPosition.delay
-        positionToUpdate.angles = newPosition.angles
+        positionToUpdate.delay = newDelay
+        positionToUpdate.angles = newAngles
         return self.repository.save(positionToUpdate)
+        
+    def increaseSequenceById(self, positionId: int):
+        positionToIncrease = self.getById(positionId)
+        max_sequence = self.repository.findMaxSequenceByMovementId(positionToIncrease.movement_id)
+
+        if positionToIncrease.sequence >= max_sequence:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Position is already at the maximum sequence")
+        
+        return self.repository.increaseSequence(positionToIncrease)        
+    
+    def decreaseSequenceById(self, positionId: int):
+        positionToDecrease = self.getById(positionId)
+
+        if positionToDecrease.sequence <= 1:  # La secuencia mínima es 1
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Position is already at the minimum sequence")
+        
+        return self.repository.decreaseSequence(positionToDecrease)
     
     def deleteById(self, positionId: int):
         positionToDelete = self.getById(positionId)
@@ -45,19 +59,5 @@ class PositionService:
         self.repository.decrementSequenceAfter(positionToDelete)
         return True
     
-    def increaseSequenceById(self, positionId: int):
-        positionToIncrease = self.getById(positionId)
-        max_sequence = self.repository.findMaxSequenceByMovementId(positionToIncrease.movement_id)
 
-        if positionToIncrease.sequence < max_sequence:
-            return self.repository.increaseSequence(positionToIncrease)
-        else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Position is already at the maximum sequence")
-    
-    def decreaseSequenceById(self, positionId: int):
-        positionToDecrease = self.getById(positionId)
-
-        if positionToDecrease.sequence > 1:  # La secuencia mínima es 1
-            return self.repository.decreaseSequence(positionToDecrease)
-        else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Position is already at the minimum sequence")
+            

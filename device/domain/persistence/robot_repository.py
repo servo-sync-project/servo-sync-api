@@ -22,7 +22,7 @@ class RobotRepository(BaseRepository[Robot]):
         
     def findAllByUserId(self, userId: int) -> list[Robot]:
         with getSession() as session:
-            statement = select(Robot).where(Robot.user_id == userId)
+            statement = select(Robot).where(Robot.user_id == userId).order_by(Robot.id)
             return session.exec(statement).all()
     
     # Metodos para obtener objetos padres    

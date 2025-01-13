@@ -11,11 +11,6 @@ class PositionMapper:
                         movement_id=request.movement_id)
     
     @staticmethod
-    def updateRequestToModel(request: UpdatePositionRequest) -> Position:
-        return Position(delay=request.delay, 
-                        angles=json.dumps(request.angles))
-    
-    @staticmethod
     def modelToResponse(position: Position) -> PositionResponse:
         return PositionResponse(id=position.id, 
                                 sequence=position.sequence, 

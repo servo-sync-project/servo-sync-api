@@ -19,14 +19,13 @@ class MovementRepository(BaseRepository[Movement]):
     def findByRobotIdAndName(self, robotId: int, movementName: str) -> Optional[Movement]:
         with getSession() as session:
             statement = select(Movement).where((Movement.robot_id == robotId) & 
-                                               (Movement.name == movementName))
+                                               (Movement.name == movementName)).order_by(Movement.id)
             return session.exec(statement).first()
         
-    def findByIdAndCoordinates(self, robotId: int, coordX: int, coordY: int) -> Optional[Movement]:
+    def findByIdAndCoordinates(self, robotId: int, coordinates: str) -> Optional[Movement]:
         with getSession() as session:
-            statement = (select(Movement).where((Movement.robot_id == robotId) &
-                                                (Movement.coord_x == coordX) &
-                                                (Movement.coord_y == coordY)))
+            statement = select(Movement).where((Movement.robot_id == robotId) &
+                                                (Movement.coordinates == coordinates))
             return session.exec(statement).first()
 
     # Metodos para obtener objetos padres    

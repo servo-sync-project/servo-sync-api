@@ -1,12 +1,9 @@
-import json
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from dependency_injector.wiring import inject, Provide
 from device.mapping.robot_mapper import RobotMapper
-from device.mapping.servo_group_mapper import ServoGroupMapper
-from device.resource.request.robot_request import CreateRobotRequest, UpdateInitialPositionRequest, UpdateRobotRequest
+from device.resource.request.robot_request import CreateRobotRequest, UpdateCurrentPositionRequest, UpdateInitialPositionRequest, UpdateRobotRequest
 from device.resource.response.robot_response import RobotResponse, RobotResponseForAll
 from device.service.robot_service import RobotService
-from device.service.servo_group_service import ServoGroupService
 from security.domain.model.user import Role, User
 from crosscutting.authorization import authorizeRoles, getAuthenticatedUser
 from core.container import Container
@@ -17,12 +14,12 @@ router = APIRouter(
     tags=["robots"]
 )
 
-@router.get("/botname/{botname}", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@router.get("/uuid/{uniqueUid}", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
-async def getRobotByBotname(botname: str,
+async def getRobotByUniqueUid(uniqueUid: str,
                             authenticatedUser: User = Depends(getAuthenticatedUser), 
                             robotService: RobotService = Depends(Provide[Container.robotService])):
-    robot = robotService.getByBotname(botname)
+    robot = robotService.getByUniqueUid(uniqueUid)
     robotService.validateAccess(authenticatedUser.id, robot.id)
     return RobotMapper.modelToResponse(robot)
 
@@ -33,28 +30,18 @@ async def getAllRobotsByMy(authenticatedUser: User = Depends(getAuthenticatedUse
     robots = robotService.getAllByUserId(authenticatedUser.id)
     return [RobotMapper.modelToResponse(robot) for robot in robots]
 
+@router.get("/", response_model=list[RobotResponseForAll], dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def getAllRobotsForAll(robotService: RobotService = Depends(Provide[Container.robotService])):
+    robots = robotService.getAll()
+    return [RobotMapper.modelToResponseForAll(robot) for robot in robots]
+
 @router.post("/", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
 async def createRobot(request: CreateRobotRequest, 
                       authenticatedUser: User = Depends(getAuthenticatedUser), 
                       robotService: RobotService = Depends(Provide[Container.robotService])):
-    robot, servoGroups = RobotMapper.createRequestToModel(request, authenticatedUser.id)
-    robot = robotService.create(robot, servoGroups)
-    return RobotMapper.modelToResponse(robot)
-
-@router.get("/", response_model=list[RobotResponseForAll], dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-@inject
-async def getAllRobotsWithoutPositions(robotService: RobotService = Depends(Provide[Container.robotService])):
-    robots = robotService.getAll()
-    return [RobotMapper.modelToResponseForAll(robot) for robot in robots]
-
-@router.get("/{robotId}", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-@inject
-async def getRobotById(robotId: int,
-                       authenticatedUser: User = Depends(getAuthenticatedUser), 
-                       robotService: RobotService = Depends(Provide[Container.robotService])):
-    robotService.validateAccess(authenticatedUser.id, robotId)
-    robot = robotService.getById(robotId)
+    robot = robotService.create(RobotMapper.createRequestToModel(request, authenticatedUser.id))
     return RobotMapper.modelToResponse(robot)
 
 @router.put("/{robotId}", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
@@ -64,17 +51,27 @@ async def updateRobotById(robotId: int,
                           authenticatedUser: User = Depends(getAuthenticatedUser), 
                           robotService: RobotService = Depends(Provide[Container.robotService])):
     robotService.validateAccess(authenticatedUser.id, robotId)
-    robot = robotService.updateById(robotId, request.botname, request.image_url, request.description)
+    robot = robotService.updateById(robotId, request.botname, request.description)
     return RobotMapper.modelToResponse(robot)
 
-@router.put("/{robotId}/initial-position", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@router.put("/{robotId}/image", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
-async def updateInitialPositionById(robotId: int, 
-                                    newPosition: UpdateInitialPositionRequest, 
-                                    authenticatedUser: User = Depends(getAuthenticatedUser), 
-                                    robotService: RobotService = Depends(Provide[Container.robotService])):
+async def updateImageById(robotId: int, 
+                          imageFile: UploadFile,
+                          authenticatedUser: User = Depends(getAuthenticatedUser), 
+                          robotService: RobotService = Depends(Provide[Container.robotService])):
     robotService.validateAccess(authenticatedUser.id, robotId)
-    robot = robotService.updateInitialPositionById(robotId, json.dumps(newPosition.initial_position.model_dump()))
+    robot = robotService.updateImageById(robotId, imageFile)
+    return RobotMapper.modelToResponse(robot)
+
+@router.put("/{robotId}/config-image", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def updateConfigImageById(robotId: int, 
+                                configImageFile: UploadFile,
+                                authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                robotService: RobotService = Depends(Provide[Container.robotService])):
+    robotService.validateAccess(authenticatedUser.id, robotId)
+    robot = robotService.updateConfigImageById(robotId, configImageFile)
     return RobotMapper.modelToResponse(robot)
 
 @router.delete("/{robotId}", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
@@ -85,37 +82,65 @@ async def deleteRobotById(robotId: int,
     robotService.validateAccess(authenticatedUser.id, robotId)
     return robotService.deleteById(robotId)
 
-@router.put("/{robotId}/move-initial-position", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@router.post("/{robotId}/move/initial-position", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
-async def moveToInitialPositionById(robotId: int, 
-                                    authenticatedUser: User = Depends(getAuthenticatedUser), 
-                                    robotService: RobotService = Depends(Provide[Container.robotService])):
+async def moveToInitialPositionById(robotId: int,
+                                             authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                             robotService: RobotService = Depends(Provide[Container.robotService])):
     robotService.validateAccess(authenticatedUser.id, robotId)
     return robotService.moveToInitialPositionById(robotId)
 
-# @router.put("/{robotId}/move-current-position", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-# @inject
-# async def updateAndMoveToCurrentPositionById(robotId: int, 
-#                                              newPosition: UpdateCurrentPositionRequest, 
-#                                              authenticatedUser: User = Depends(getAuthenticatedUser), 
-#                                              robotService: RobotService = Depends(Provide[Container.robotService])):
-#     robotService.validateAccess(authenticatedUser.id, robotId)
-#     return robotService.updateAndMoveToCurrentPositionById(robotId, json.dumps(newPosition.current_position.model_dump()))
-
-@router.put("/{robotId}/movements/name/{movementName}/execute", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@router.put("/{robotId}/move/initial-position", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
-async def executeByIdAndMovementName(robotId: int, 
-                                      movementName: str, 
+async def updateAndmoveToInitialPositionById(robotId: int, 
+                                             newPosition: UpdateInitialPositionRequest, 
+                                             authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                             robotService: RobotService = Depends(Provide[Container.robotService])):
+    robotService.validateAccess(authenticatedUser.id, robotId)
+    robot = robotService.updateAndmoveToInitialPositionById(robotId, newPosition.initial_position.model_dump_json())
+    return RobotMapper.modelToResponse(robot)
+
+@router.put("/{robotId}/move/current-position", response_model=RobotResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def updateAndMoveToCurrentPositionById(robotId: int, 
+                                             newPosition: UpdateCurrentPositionRequest, 
+                                             authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                             robotService: RobotService = Depends(Provide[Container.robotService])):
+    robotService.validateAccess(authenticatedUser.id, robotId)
+    robot = robotService.updateAndMoveToCurrentPositionById(robotId, newPosition.current_position.model_dump_json())
+    return RobotMapper.modelToResponse(robot)
+
+@router.post("/{robotId}/movements/{movementId}/execute", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def executeMovementByIdAndYourId(robotId: int, 
+                                       movementId: int, 
+                                       authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                       robotService: RobotService = Depends(Provide[Container.robotService])):
+    robotService.validateAccess(authenticatedUser.id, robotId)
+    return robotService.executeMovementByIdAndYourId(robotId, movementId)
+
+@router.post("/{robotId}/movements/positions/{positionId}/move", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def moveToPositionByIdAndYourId(robotId: int, 
+                                      positionId: int, 
                                       authenticatedUser: User = Depends(getAuthenticatedUser), 
                                       robotService: RobotService = Depends(Provide[Container.robotService])):
     robotService.validateAccess(authenticatedUser.id, robotId)
-    return robotService.executeByIdAndMovementName(robotId, movementName)
+    return robotService.moveToPositionByIdAndYourId(robotId, positionId)
 
-@router.put("/{robotId}/movements/name/{movementName}/save-data", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+# ---------------- ENDPOINTS TRANSACCIONALES PARA EL ALMACENAMIENTO LOCAL DEL ROBOT-----------------
+@router.put("/{robotId}/storage/initial-position", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
-async def saveDataByIdAndMovementName(robotId: int, 
-                                 movementName: str,
-                                 authenticatedUser: User = Depends(getAuthenticatedUser), 
-                                 robotService: RobotService = Depends(Provide[Container.robotService])):
+async def saveInitialPositionInLocalById(robotId: int, 
+                                         authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                         robotService: RobotService = Depends(Provide[Container.robotService])):
     robotService.validateAccess(authenticatedUser.id, robotId)
-    return robotService.saveDataByIdAndMovementName(robotId, movementName)
+    return robotService.saveInitialPositionInLocalById(robotId)
+
+@router.delete("/{robotId}/storage", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
+@inject
+async def clearLocalStorageById(robotId: int, 
+                                authenticatedUser: User = Depends(getAuthenticatedUser), 
+                                robotService: RobotService = Depends(Provide[Container.robotService])):
+    robotService.validateAccess(authenticatedUser.id, robotId)
+    return robotService.clearLocalStorageById(robotId)

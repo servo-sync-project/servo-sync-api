@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 from device.domain.model.position_json import PositionJson
@@ -5,18 +6,19 @@ from device.domain.model.position_json import PositionJson
 class RobotResponse(BaseModel):
     id: int
     unique_uid: str
-    image_url: str
     botname: str
-    is_connected_broker: bool
     description: str
-    initial_position: PositionJson
-    
+    image_url: Optional[str]
+    config_image_url: Optional[str]
+    initial_position: Optional[PositionJson]
+    current_position: Optional[PositionJson]
+    is_connected_broker: bool
 
 class RobotResponseForAll(BaseModel):
     id: int
-    image_url: str
     botname: str
-    is_connected_broker: bool
-    num_servos: int
     description: str
+    image_url: Optional[str]
+    is_connected_broker: bool
+    
     

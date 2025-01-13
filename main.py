@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
+import logging
 import debugpy
-from fastapi import FastAPI, logger
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from sqlmodel import SQLModel
@@ -11,6 +12,7 @@ from security.api.rest.auth_controller import router as AuthController
 from security.api.rest.user_controller import router as UserController
 
 from device.api.rest.robot_controller import router as RobotController
+from device.api.rest.servo_group_controller import router as ServoGroupController
 from device.api.rest.movement_controller import router as MovementController
 from device.api.rest.position_controller import router as PositionController
 
@@ -20,6 +22,8 @@ from core.database import engine
 from crosscutting.mqtt_client import mqttClient
 from core.config import settings
 
+logger = logging.getLogger(__name__)
+
 container = Container()
 robotService = container.robotService()
 userRepository = container.userRepository()
@@ -27,34 +31,38 @@ userRepository = container.userRepository()
 # Configuración de callbacks para MQTT
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("Conectado al broker MQTT")
+        logger.info("Conectado al broker MQTT")
         mqttClient.subscribe("robot/+/access/status")
         mqttClient.subscribe("robot/+/access/positions")
-        mqttClient.subscribe("robot/+/access/save")
+        mqttClient.subscribe("robot/+/access/storage/#")
     else:
-        print(f"Conexión fallida. Código de retorno: {rc}")
+        logger.info(f"Conexión fallida. Código de retorno: {rc}")
 
 def on_message(client, userdata, msg):
     topicParts = msg.topic.split('/')
     robotToken = topicParts[1]
 
     if msg.topic.endswith("/access/status"):
-        if msg.payload.decode() == "disconnected":
-            print(f"Robot {robotToken} se ha desconectado")
-            robotService.updateConnectionStatus(robotToken, False)
-        elif msg.payload.decode() == "connected":
-            print(f"Robot {robotToken} se ha conectado")
-            robotService.updateConnectionStatus(robotToken, True)
-        print(f"Status recibido del robot {robotToken}: {msg.payload.decode()}")
+        if msg.payload.decode() == "offline":
+            logger.info(f"Robot {robotToken} se ha desconectado")
+            robotService.updateConnectionStatusByUUID(robotToken, False)
+        elif msg.payload.decode() == "online":
+            logger.info(f"Robot {robotToken} se ha conectado")
+            robotService.updateConnectionStatusByUUID(robotToken, True)
+        logger.info(f"Status recibido del robot {robotToken}: {msg.payload.decode()}")
     elif msg.topic.endswith("/access/positions"):
-        # Aquí podrías manejar las respuestas de los movimientos si es necesario
-        print(f"Movimiento recibido del robot {robotToken}: {msg.payload.decode()}")
-    elif msg.topic.endswith("/access/save"):
-        # Aquí podrías manejar las respuestas de los movimientos si es necesario
-        print(f"Guardado recibido del robot {robotToken}: {msg.payload.decode()}")
+        logger.info(f"posiciones recibido para robot {robotToken}: {msg.payload.decode()}")
+    elif msg.topic.endswith("/access/storage/save-movement"):
+        logger.info(f"comando de almacenamiento recibido para robot {robotToken}: {msg.payload.decode()}")
+    elif msg.topic.endswith("/access/storage/delete-movement"):
+        logger.info(f"comando de almacenamiento recibido para robot {robotToken}: {msg.payload.decode()}")
+    elif msg.topic.endswith("/access/storage/save-initial-position"):
+        logger.info(f"comando de almacenamiento recibido para robot {robotToken}: {msg.payload.decode()}")
+    elif msg.topic.endswith("/access/storage/clear"):
+        logger.info(f"comando de almacenamiento recibido para robot {robotToken}: {msg.payload.decode()}")
 
 def on_disconnect(client, userdata, rc):
-    print("Desconectado del broker MQTT")
+    logger.info("Desconectado del broker MQTT")
 
 # Lifespan handler para manejar el ciclo de vida de la aplicación
 @asynccontextmanager
@@ -67,6 +75,7 @@ async def lifespan(app: FastAPI):
         "security.api.rest.auth_controller",
         "security.api.rest.user_controller",
         "device.api.rest.robot_controller",
+        "device.api.rest.servo_group_controller",
         "device.api.rest.movement_controller",
         "device.api.rest.position_controller"
     ])
@@ -81,8 +90,6 @@ async def lifespan(app: FastAPI):
     # Cuando la aplicación se cierra, paramos el loop de MQTT
     mqttClient.loop_stop()
     mqttClient.disconnect()
-
-
 
 def create_app():
     # Crear la aplicación FastAPI utilizando el lifespan handler
@@ -100,6 +107,7 @@ def create_app():
     app.include_router(AuthController)
     app.include_router(UserController)
     app.include_router(RobotController)
+    app.include_router(ServoGroupController)
     app.include_router(MovementController)
     app.include_router(PositionController)
     
@@ -120,7 +128,7 @@ app = create_app()
 async def redirect_to_swagger():    
     logger.info("Redirect to swagger...")
     return RedirectResponse(url="/docs")
-
+    
 if __name__ == "__main__":
     if settings.debug_mode == True:
         debugpy.listen(("0.0.0.0", 5678))

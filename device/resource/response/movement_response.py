@@ -1,8 +1,10 @@
 from typing import Optional
 from pydantic import BaseModel
 
+from device.domain.model.coordinates_json import CoordinatesJson
+
 class MovementResponse(BaseModel):
     id: int
-    coord_x: int
-    coord_y: int
     name: str
+    coordinates: Optional[CoordinatesJson]
+    

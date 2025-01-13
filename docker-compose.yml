@@ -1,0 +1,14 @@
+services:
+  servo-sync-api:
+    build: .
+    image: servo-sync-api-image
+    container_name: servo-sync-api-container
+    ports:
+      - "8000:8000"
+    env_file: 
+      - .env
+    networks:
+      - servo-sync-network
+
+networks:
+  servo-sync-network:
