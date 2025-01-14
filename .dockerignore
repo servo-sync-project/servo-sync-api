@@ -1,6 +1,6 @@
-env/
+.venv/
+.git
 __pycache__/
-
 *.env
 *.env.*
 env.*
