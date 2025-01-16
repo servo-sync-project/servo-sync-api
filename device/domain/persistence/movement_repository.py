@@ -27,19 +27,3 @@ class MovementRepository(BaseRepository[Movement]):
             statement = select(Movement).where((Movement.robot_id == robotId) &
                                                 (Movement.coordinates == coordinates))
             return session.exec(statement).first()
-
-    # Metodos para obtener objetos padres    
-    def findMyUserById(self, movementId: int) -> User:
-        with getSession() as session:
-            statement = (select(User)
-                        .join(Robot, Robot.user_id == User.id)
-                        .join(Movement, Movement.robot_id == Robot.id)
-                        .where(Movement.id == movementId))
-            return session.exec(statement).first()
-        
-    def findMyRobotById(self, movementId: int) -> Robot:
-        with getSession() as session:
-            statement = (select(Robot)
-                        .join(Movement, Movement.robot_id == Robot.id)
-                        .where(Movement.id == movementId))
-            return session.exec(statement).first()

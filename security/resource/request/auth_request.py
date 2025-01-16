@@ -12,11 +12,11 @@ class LoginUserRequest(BaseModel):
     email: EmailStr
     password: SecretStr
 
+class SendEmailRequest(BaseModel):
+    email: EmailStr
+
 class EmailVerificationRequest(BaseModel):
     verification_uuid: str
-
-class PasswordResetRequestByEmail(BaseModel):
-    email: EmailStr
 
 class PasswordResetRequest(BaseModel):
     verification_uuid: str

@@ -25,14 +25,14 @@ async def getMyUser(authenticatedUser: User = Depends(getAuthenticatedUser)):
 async def updateMyUser(request: UpdateUserRequest, 
                        authenticatedUser: User = Depends(getAuthenticatedUser), 
                        userService: UserService = Depends(Provide[Container.userService])):
-    user = userService.updateById(authenticatedUser.id, request.username)
+    user = userService.update(authenticatedUser, request.username)
     return UserMapper.modelToResponse(user)
 
 @router.delete("/me", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
 async def deleteMyUser(authenticatedUser: User = Depends(getAuthenticatedUser), 
                        userService: UserService = Depends(Provide[Container.userService])):
-    return userService.deleteById(authenticatedUser.id)
+    return userService.delete(authenticatedUser)
 
 # 2. Métodos dinámicos
 @router.get("/username/{username}", response_model=UserResponse, dependencies=[Depends(authorizeRoles([Role.ADMIN]))])
@@ -55,7 +55,7 @@ async def getUserById(userId: int,
 async def updateUserById(userId: int, 
                          request: UpdateUserRequest, 
                          userService: UserService = Depends(Provide[Container.userService])):
-    user = userService.updateById(userId, request.username)
+    user = userService.update(userService.getById(userId), request.username)
     return UserMapper.modelToResponse(user)
 
 # Eliminar usuario por ID (solo accesible por ADMIN)
@@ -63,7 +63,7 @@ async def updateUserById(userId: int,
 @inject
 async def deleteUserById(userId: int, 
                          userService: UserService = Depends(Provide[Container.userService])):
-    return userService.deleteById(userId)
+    return userService.delete(userService.getById(userId))
 
 # 3. Rutas generales
 @router.get("/", response_model=list[UserResponse], dependencies=[Depends(authorizeRoles([Role.ADMIN]))])

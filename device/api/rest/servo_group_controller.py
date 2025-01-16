@@ -40,14 +40,14 @@ async def getServoGroupById(servoGroupId: int,
 @inject
 async def increaseServoGroupSequenceById(servoGroupId: int,
                                          servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
-    servoGroup = servoGroupService.increaseSequenceById(servoGroupId)
+    servoGroup = servoGroupService.increaseSequence(servoGroupService.getById(servoGroupId))
     return ServoGroupMapper.modelToResponse(servoGroup)
 
 @router.put("/{servoGroupId}/decrease", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
 async def decreaseServoGroupSequenceById(servoGroupId: int,
                                          servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
-    servoGroup = servoGroupService.decreaseSequenceById(servoGroupId)
+    servoGroup = servoGroupService.decreaseSequence(servoGroupService.getById(servoGroupId))
     return ServoGroupMapper.modelToResponse(servoGroup)
 
 @router.put("/{servoGroupId}/name", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
@@ -55,7 +55,7 @@ async def decreaseServoGroupSequenceById(servoGroupId: int,
 async def updateServoGroupNameById(servoGroupId: int, 
                                    request: UpdateServoGroupNameRequest,
                                    servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
-    servoGroup = servoGroupService.updateNameById(servoGroupId, request.name)
+    servoGroup = servoGroupService.updateName(servoGroupService.getById(servoGroupId), request.name)
     return ServoGroupMapper.modelToResponse(servoGroup)
 
 @router.put("/{servoGroupId}/num-servos", response_model=ServoGroupResponse, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
@@ -63,11 +63,11 @@ async def updateServoGroupNameById(servoGroupId: int,
 async def updateServoGroupNumServosById(servoGroupId: int, 
                                request: UpdateServoGroupNumServosRequest,
                                servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
-    servoGroup = servoGroupService.updateNumServosById(servoGroupId, request.num_servos)
+    servoGroup = servoGroupService.updateNumServos(servoGroupService.getById(servoGroupId), request.num_servos)
     return ServoGroupMapper.modelToResponse(servoGroup)
 
 @router.delete("/{servoGroupId}", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
 @inject
 async def deleteServoGroupById(servoGroupId: int,
                                servoGroupService: ServoGroupService = Depends(Provide[Container.servoGroupService])):
-    return servoGroupService.deleteById(servoGroupId)
+    return servoGroupService.delete(servoGroupService.getById(servoGroupId))

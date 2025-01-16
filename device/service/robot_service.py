@@ -3,18 +3,22 @@ import logging
 import uuid
 from fastapi import HTTPException, UploadFile, status
 from crosscutting.service.cloudinary_service import CloudinaryService
+from device.domain.model.movement import Movement
+from device.domain.model.position import Position
 from device.domain.persistence.movement_repository import MovementRepository
 from device.domain.persistence.position_repository import PositionRepository
 from device.domain.persistence.robot_repository import RobotRepository
 from device.domain.model.robot import Robot
 from crosscutting.mqtt_client import mqttClient
 from device.domain.model.position_json import PositionJson, loadPosition
+from security.domain.model.user import User
+from security.domain.persistence.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
 class RobotService:
     def __init__(self, robotRepository: RobotRepository, 
-                 movementRepository: MovementRepository, 
+                 movementRepository: MovementRepository,
                  positionRepository: PositionRepository,
                  cloudinaryService: CloudinaryService):
         self.repository = robotRepository
@@ -35,12 +39,6 @@ class RobotService:
         
         robot.unique_uid = uniqueUuid
         return self.repository.save(robot)
-    
-    def validateAccess(self, userId: int, robotId: int):
-        user = self.repository.findMyUserById(robotId)
-        if userId != user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to resource")
-        return True
     
     def getById(self, robotId: int):
         robot = self.repository.findById(robotId)
@@ -66,9 +64,7 @@ class RobotService:
     def getAll(self):
         return self.repository.findAll()
     
-    def updateById(self, robotId: str, newBotname: str, newDescription: str): 
-        robotToUpdate = self.getById(robotId) 
-
+    def update(self, robotToUpdate: Robot, newBotname: str, newDescription: str): 
         if newBotname != robotToUpdate.botname and self.repository.findByBotname(newBotname):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Robot already exists")
         
@@ -76,40 +72,33 @@ class RobotService:
         robotToUpdate.description=newDescription
         return self.repository.save(robotToUpdate)
     
-    def updateImageById(self, robotId: int, newImageFile: UploadFile):
-        robotToUpdate = self.getById(robotId)
+    def updateImage(self, robotToUpdate: Robot, newImageFile: UploadFile):
         robotToUpdate.image_url = self.cloudinaryService.uploadImage("robots/image", robotToUpdate.unique_uid, newImageFile)
         return self.repository.save(robotToUpdate)
 
-    def updateConfigImageById(self, robotId: int, newConfigImageFile: UploadFile):
-        robotToUpdate = self.getById(robotId)
+    def updateConfigImage(self, robotToUpdate: Robot, newConfigImageFile: UploadFile):
         robotToUpdate.config_image_url = self.cloudinaryService.uploadImage("robots/config-image", robotToUpdate.unique_uid, newConfigImageFile)
         return self.repository.save(robotToUpdate)
 
-    def updateInitialPositionById(self, robotId: int, newInitialPosition: str):
-        robotToUpdate = self.getById(robotId)
+    def updateInitialPosition(self, robotToUpdate: Robot, newInitialPosition: str):
         robotToUpdate.initial_position = newInitialPosition
         return self.repository.save(robotToUpdate)
 
-    def updateCurrentPositionById(self, robotId: int, newCurrentPosition: str):
-        robotToUpdate = self.getById(robotId)        
+    def updateCurrentPosition(self, robotToUpdate: Robot, newCurrentPosition: str): 
         robotToUpdate.current_position = newCurrentPosition
         return self.repository.save(robotToUpdate)
     
     def updateConnectionStatusByUUID(self, uniqueUid: int, isConnected: bool):
-        # robot = self.getByUniqueUid(uniqueUid)
         robot = self.repository.findByUniqueUid(uniqueUid)
         if robot:
             robot.is_connected_broker = isConnected
             self.repository.save(robot)
     
-    def deleteById(self, robotId: int):
-        robotToDelete = self.getById(robotId)
+    def delete(self, robotToDelete: Robot):
         self.repository.deleteById(robotToDelete.id)
         return True
     
-    def moveToInitialPositionById(self, robotId: int):
-        robot = self.getById(robotId)
+    def moveToInitialPosition(self, robot: Robot):
         if not robot.initial_position:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Position not found")
         
@@ -122,11 +111,11 @@ class RobotService:
         print(f"Data sent to topic {topic}")
         
         # Actualizar la posición actual del robot en la base de datos
-        self.updateCurrentPositionById(robot.id, robot.initial_position)
+        self.updateCurrentPosition(robot, robot.initial_position)
         return True
     
-    def updateAndmoveToInitialPositionById(self, robotId: int, newInitialPosition: str):
-        robot = self.updateInitialPositionById(robotId, newInitialPosition)
+    def updateAndmoveToInitialPosition(self, robot: Robot, newInitialPosition: str):
+        robot = self.updateInitialPosition(robot, newInitialPosition)
         
         initialPosition = loadPosition(robot.initial_position)
 
@@ -137,11 +126,11 @@ class RobotService:
         print(f"Data sent to topic {topic}")
         
         # Actualizar la posición actual del robot en la base de datos
-        robot = self.updateCurrentPositionById(robot.id, robot.initial_position)
+        robot = self.updateCurrentPosition(robot, robot.initial_position)
         return robot
     
-    def updateAndMoveToCurrentPositionById(self, robotId: int, newCurrentPosition: str):
-        robot = self.updateCurrentPositionById(robotId, newCurrentPosition)
+    def updateAndMoveToCurrentPosition(self, robot: Robot, newCurrentPosition: str):
+        robot = self.updateCurrentPosition(robot, newCurrentPosition)
 
         currentPosition = loadPosition(robot.current_position)
 
@@ -154,20 +143,10 @@ class RobotService:
         return robot
     
     # ejecutar movimmientos por su nombre
-    def executeMovementByIdAndYourId(self, robotId: int, movementId: int): #robotId: int, movementName: str):
-        movement = self.movementRepository.findById(movementId)
-        if not movement:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movement not found")
-        
-        positions = self.positionRepository.findAllByMovementId(movement.id) 
+    def executeMovementById(self, robot: Robot, movementId: int): #robotId: int, movementName: str):            
+        positions = self.positionRepository.findAllByMovementId(movementId) 
         if not positions:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No positions found")
-        
-        # robot = self.getById(movement.robot_id)
-
-        robot = self.movementRepository.findMyRobotById(movementId) 
-        if not robot or robot.id != robotId:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="robot not found or not access")
 
         message = [{"delay": position.delay, "angles": json.loads(position.angles)} for position in positions]
 
@@ -175,21 +154,13 @@ class RobotService:
         mqttClient.publish(topic, json.dumps(message))
         print(f"Data sent to topic {topic}")
         
-        self.updateCurrentPositionById(robot.id, PositionJson(delay=positions[-1].delay, angles=json.loads(positions[-1].angles)).model_dump_json())
+        self.updateCurrentPosition(robot, PositionJson(delay=positions[-1].delay, angles=json.loads(positions[-1].angles)).model_dump_json())
 
         return True
     
     # ejecutar movimmientos por su nombre
-    def moveToPositionByIdAndYourId(self, robotId: int, positionId: int): #robotId: int, movementName: str, positionSequence: int):
-        position = self.positionRepository.findById(positionId) 
-        if not position:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Position not found")
-        
-        # robot = self.getById(movement.robot_id)
-
-        robot = self.positionRepository.findMyRobotById(positionId) 
-        if not robot or robot.id != robotId:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="robot not found or not access")
+    def moveToPositionById(self, robot: Robot, positionId: int): #robotId: int, movementName: str, positionSequence: int):
+        position = self.positionRepository.findById(positionId)
         
         message = [{"delay": position.delay, "angles": json.loads(position.angles)}]
 
@@ -197,16 +168,48 @@ class RobotService:
         mqttClient.publish(topic, json.dumps(message))
         print(f"Data sent to topic {topic}")
         
-        self.updateCurrentPositionById(robot.id, PositionJson(delay=position.delay, angles=json.loads(position.angles)).model_dump_json())
+        self.updateCurrentPosition(robot, PositionJson(delay=position.delay, angles=json.loads(position.angles)).model_dump_json())
 
         return True
     
     # ---------------- METODOS TRANSACCIONALES PARA EL ALMACENAMIENTO LOCAL DEL ROBOT-----------------
+    def saveMovementInLocal(self, robot: Robot, movementId: int):
+        movement = self.movementRepository.findById(movementId)
+        
+        positions = self.positionRepository.findAllByMovementId(movement.id) 
+        if not positions:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No positions found")
+        
+        positions_data = [
+            {"delay": position.delay, "angles": json.loads(position.angles)} for position in positions
+        ]
+
+        message = {
+            "name": movement.name, 
+            "positions": positions_data
+        }
+
+        topic = f"robot/{robot.unique_uid}/access/storage/save-movement"
+        mqttClient.publish(topic, json.dumps(message))
+        logger.info(f"Data sent to topic {topic}")
+
+        return True
+     
+    def deleteMovementInLocal(self, robot: Robot, movementId: int):
+        movement = self.movementRepository.findById(movementId)
+
+        message = { "name": movement.name }
+
+        topic = f"robot/{robot.unique_uid}/access/storage/delete-movement"
+        mqttClient.publish(topic, json.dumps(message))
+        logger.info(f"Data sent to topic {topic}")
+
+        return True
+    
     #{60, 150, 30, 30, 120, 30, 150, 150, 90, 90, 0, 90, 90, 180, 90, 90}
-    def saveInitialPositionInLocalById(self, robotId: int):
-        robot = self.getById(robotId)
+    def saveInitialPositionInLocal(self, robot: Robot):
         if not robot.initial_position:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Position not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Initial position not found")
         
         message = loadPosition(robot.initial_position).model_dump()
 
@@ -216,14 +219,24 @@ class RobotService:
 
         return True
     
-    def clearLocalStorageById(self, robotId: int):
-        robot = self.getById(robotId)
-
+    def clearLocalStorage(self, robot: Robot):
         topic = f"robot/{robot.unique_uid}/access/storage/clear"
         mqttClient.publish(topic)
         logger.info(f"Data sent to topic {topic}")
 
         return True
+    
+    def validateMovementAccess(self, robotId: int, movementId: int):
+        robot = self.repository.findByMovementId(movementId)
+        if not robot or robotId != robot.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to resource")
+        return robot
+        
+    def validatePositionAccess(self, robotId: int, positionId: int):
+        robot = self.repository.findByPositionId(positionId)
+        if not robot or robotId != robot.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to resource")
+        return robot
     
 # robot -> movement -> position
 # position -> movement -> robot

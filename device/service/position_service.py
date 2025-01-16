@@ -2,6 +2,7 @@ import json
 from fastapi import HTTPException, status
 from device.domain.model.position import Position
 from device.domain.persistence.position_repository import PositionRepository
+from security.domain.persistence.user_repository import UserRepository
 
 class PositionService:
     def __init__(self, positionRepository: PositionRepository):
@@ -14,12 +15,6 @@ class PositionService:
         max_sequence = self.repository.findMaxSequenceByMovementId(position.movement_id)
         position.sequence = max_sequence + 1
         return self.repository.save(position)
-    
-    def validateAccess(self, userId: int, positionId: int):
-        user = self.repository.findMyUserById(positionId)
-        if userId != user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to resource")
-        return True
 
     def getById(self, positionId: int):
         position = self.repository.findById(positionId)
@@ -30,14 +25,12 @@ class PositionService:
     def getAllByMovementId(self, movementId: int):
         return self.repository.findAllByMovementId(movementId)
     
-    def updateById(self, positionId: int, newDelay: int, newAngles: str):
-        positionToUpdate = self.getById(positionId)
+    def update(self, positionToUpdate: Position, newDelay: int, newAngles: str):
         positionToUpdate.delay = newDelay
         positionToUpdate.angles = newAngles
         return self.repository.save(positionToUpdate)
         
-    def increaseSequenceById(self, positionId: int):
-        positionToIncrease = self.getById(positionId)
+    def increaseSequence(self, positionToIncrease: Position):
         max_sequence = self.repository.findMaxSequenceByMovementId(positionToIncrease.movement_id)
 
         if positionToIncrease.sequence >= max_sequence:
@@ -45,16 +38,13 @@ class PositionService:
         
         return self.repository.increaseSequence(positionToIncrease)        
     
-    def decreaseSequenceById(self, positionId: int):
-        positionToDecrease = self.getById(positionId)
-
+    def decreaseSequence(self, positionToDecrease: Position):
         if positionToDecrease.sequence <= 1:  # La secuencia mínima es 1
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Position is already at the minimum sequence")
         
         return self.repository.decreaseSequence(positionToDecrease)
     
-    def deleteById(self, positionId: int):
-        positionToDelete = self.getById(positionId)
+    def delete(self, positionToDelete: Position):
         self.repository.deleteById(positionToDelete.id)
         self.repository.decrementSequenceAfter(positionToDelete)
         return True

@@ -18,24 +18,15 @@ class AuthService:
     def __init__(self, userRepository: UserRepository, emailService: EmailService):
         self.repository = userRepository
         self.emailService = emailService
-    
-    def register(self, user: User, background_tasks: BackgroundTasks):
+
+    def register(self, user: User):
         if self.repository.findByEmail(user.email) or self.repository.findByUsername(user.username):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already exists")
         
-        user.verification_uuid = self.generateUUID()
-        user.uuid_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1)
-
         user.unique_token = self.generateUniqueToken()
         user.token_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=30)
-    
-        saved_user = self.repository.save(user)
-        
-        # Create the verification link
-        verification_url = f"{settings.origin_url}/login?uuid={saved_user.verification_uuid}"
-        self.emailService.sendEmailVerification(saved_user.email, "Email Verification", verification_url, background_tasks)
-        
-        return saved_user
+
+        return self.updateVerificationUUID(user)
     
     def updateVerificationUUID(self, user: User):
         user.verification_uuid = self.generateUUID()
@@ -61,7 +52,7 @@ class AuthService:
     def createJWToken(self, email: str):
         payload = {
             "email": email,
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+            "exp": datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=settings.access_token_expire_minutes)
         }
         return jwt.encode(payload=payload, key=settings.secret_key, algorithm=settings.algorithm)
 
@@ -74,7 +65,7 @@ class AuthService:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
             user = self.repository.findByEmail(email)
             if not user:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not found")
             if not user.email_verified_at:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not verified")
             return user
@@ -91,11 +82,7 @@ class AuthService:
     def hashPassword(self, password: str):
         return pwd_context.hash(password)
     
-    def validateUniqueToken(self, uniqueToken: str):
-        user = self.repository.findByUniqueToken(uniqueToken)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-        
+    def validateUniqueToken(self, user: User):        
         if user.token_expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token has expired")
         return user     
@@ -103,42 +90,40 @@ class AuthService:
     def verifyPassword(self, plain_password: str, hashed_password: str):
         return pwd_context.verify(plain_password, hashed_password)
     
-    def verifyEmail(self, verificationUuid: str):
-        user = self.repository.findByVerificationUuid(verificationUuid)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    def sendEmailToVerifyEmail(self, user: User, background_tasks: BackgroundTasks):  
+        if user.email_verified_at:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already verified")    
+          
+        user = self.updateVerificationUUID(user)
+
+        verification_url = f"{settings.origin_url}/login?uuid={user.verification_uuid}"
+        self.emailService.sendEmailVerification(user.email, "Email Verification", verification_url, background_tasks)
         
+        return True
+    
+    def verifyEmail(self, user: User):        
         if user.email_verified_at:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already verified")
         
         if user.uuid_expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="UUID expired")
         
+        user.email_verified_at=datetime.now(timezone.utc).replace(tzinfo=None)
         self.updateVerificationUUID(user)
         return True
     
-    def sendEmailToResetPassword(self, email: str, background_tasks: BackgroundTasks):
-        user = self.repository.findByEmail(email)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-        
+    def sendEmailToResetPassword(self, user: User, background_tasks: BackgroundTasks):
         if not user.email_verified_at:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User not verified")
         
         user = self.updateVerificationUUID(user)
 
-        # Create the verification link
         verification_url = f"{settings.origin_url}/reset-password?uuid={user.verification_uuid}"
-        self.emailService.sendPasswordReset(user.email, "Email Verification", verification_url, background_tasks)
+        self.emailService.sendPasswordReset(user.email, "Reset Password", verification_url, background_tasks)
         
         return True
 
-    def resetPassword(self, verificationUuid: str, newHashedPassword: str):
-        user = self.repository.findByVerificationUuid(verificationUuid)
-        
-        if not user:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User not found")
-        
+    def resetPassword(self, user: User, newHashedPassword: str):
         if not user.email_verified_at:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User not verified")
         

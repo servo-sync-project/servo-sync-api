@@ -35,7 +35,7 @@ async def getAllMovementsByRobotId(robotId: int,
 async def updateMovementById(movementId: int, 
                              request: UpdateMovementRequest,
                              movementService: MovementService = Depends(Provide[Container.movementService])):
-    movement = movementService.updateById(movementId, request.name, request.coordinates and request.coordinates.model_dump_json())
+    movement = movementService.update(movementService.getById(movementId), request.name, request.coordinates and request.coordinates.model_dump_json())
     return MovementMapper.modelToResponse(movement)
 
 # Eliminar movimiento por ID
@@ -43,18 +43,4 @@ async def updateMovementById(movementId: int,
 @inject
 async def deleteMovementById(movementId: int,
                              movementService: MovementService = Depends(Provide[Container.movementService])):
-    return movementService.deleteById(movementId)
-
-# ---------------- ENDPOINTS TRANSACCIONALES PARA EL ALMACENAMIENTO LOCAL DEL ROBOT-----------------
-@router.put("/{movementId}/storage", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-@inject
-async def saveMovementInLocalById(movementId: int,
-                                  movementService: MovementService = Depends(Provide[Container.movementService])):
-    return movementService.saveMovementInLocalById(movementId)
-
-# Eliminar movimiento por ID
-@router.delete("/{movementId}/storage", response_model=bool, dependencies=[Depends(authorizeRoles([Role.USER, Role.ADMIN]))])
-@inject
-async def deleteMovementInLocalById(movementId: int,
-                                    movementService: MovementService = Depends(Provide[Container.movementService])):
-    return movementService.deleteMovementInLocalById(movementId)
+    return movementService.delete(movementService.getById(movementId))

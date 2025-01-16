@@ -20,5 +20,6 @@ Thumbs.db
 
 # Otros archivos comunes
 .env
+.env.prod
 .idea/
 .vscode/

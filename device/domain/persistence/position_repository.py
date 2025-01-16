@@ -60,21 +60,3 @@ class PositionRepository(BaseRepository[Position]):
                 session.refresh(position)
                 session.refresh(prevPosition)
             return position
-
-    # Metodos para obtener objetos padres     
-    def findMyUserById(self, positionId: int) -> User:
-        with getSession() as session:
-            statement = (select(User)
-                        .join(Robot, Robot.user_id == User.id)
-                        .join(Movement, Movement.robot_id == Robot.id)
-                        .join(Position, Position.movement_id == Movement.id)
-                        .where(Position.id == positionId))
-            return session.exec(statement).first()
-        
-    def findMyRobotById(self, positionId: int) -> Robot:
-        with getSession() as session:
-            statement = (select(Robot)
-                        .join(Movement, Movement.robot_id == Robot.id)
-                        .join(Position, Position.movement_id == Movement.id)
-                        .where(Position.id == positionId))
-            return session.exec(statement).first()

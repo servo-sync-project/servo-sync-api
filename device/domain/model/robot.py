@@ -1,9 +1,7 @@
 from datetime import datetime, timezone
-import json
 from sqlmodel import Relationship, SQLModel, Field
 from typing import TYPE_CHECKING, List, Optional
 
-from device.domain.model.position_json import PositionJson
 from device.domain.model.servo_group import ServoGroup
 
 if TYPE_CHECKING:
@@ -28,5 +26,5 @@ class Robot(SQLModel, table=True):
     
     # Relaciones
     user: Optional["User"] = Relationship(back_populates="robots")
-    servo_groups: List["ServoGroup"] = Relationship(back_populates="robot")
-    movements: List["Movement"] = Relationship(back_populates="robot")
+    servo_groups: List["ServoGroup"] = Relationship(back_populates="robot", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    movements: List["Movement"] = Relationship(back_populates="robot", sa_relationship_kwargs={"cascade": "all, delete-orphan"})

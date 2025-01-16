@@ -70,19 +70,3 @@ class ServoGroupRepository(BaseRepository[ServoGroup]):
                 session.refresh(servoGroup)
                 session.refresh(prevPosition)
             return servoGroup
-        
-    # Metodos para obtener objetos padres    
-    def findMyUserById(self, servoGroupId: int) -> User:
-        with getSession() as session:
-            statement = (select(User)
-                        .join(Robot, Robot.user_id == User.id)
-                        .join(ServoGroup, ServoGroup.robot_id == Robot.id)
-                        .where(ServoGroup.id == servoGroupId))
-            return session.exec(statement).first()
-        
-    def findMyRobotById(self, servoGroupId: int) -> Robot:
-        with getSession() as session:
-            statement = (select(Robot)
-                        .join(ServoGroup, ServoGroup.robot_id == Robot.id)
-                        .where(ServoGroup.id == servoGroupId))
-            return session.exec(statement).first()

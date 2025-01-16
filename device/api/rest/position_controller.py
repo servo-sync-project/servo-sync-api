@@ -35,7 +35,7 @@ async def getAllPositionsByMovementId(movementId: int,
 @inject
 async def increasePositionSequenceById(positionId: int,
                                        positionService: PositionService = Depends(Provide[Container.positionService])):
-    position = positionService.increaseSequenceById(positionId)
+    position = positionService.increaseSequence(positionService.getById(positionId))
     return PositionMapper.modelToResponse(position)
 
 # Decrementar secuencia de posición por ID
@@ -43,7 +43,7 @@ async def increasePositionSequenceById(positionId: int,
 @inject
 async def decreasePositionSequenceById(positionId: int,
                                        positionService: PositionService = Depends(Provide[Container.positionService])):
-    position = positionService.decreaseSequenceById(positionId)
+    position = positionService.decreaseSequence(positionService.getById(positionId))
     return PositionMapper.modelToResponse(position)
 
 # Actualizar posición por ID
@@ -52,7 +52,7 @@ async def decreasePositionSequenceById(positionId: int,
 async def updatePositionById(positionId: int, 
                              request: UpdatePositionRequest,
                              positionService: PositionService = Depends(Provide[Container.positionService])):
-    position = positionService.updateById(positionId, request.delay, json.dumps(request.angles))
+    position = positionService.update(positionService.getById(positionId), request.delay, json.dumps(request.angles))
     return PositionMapper.modelToResponse(position)
 
 # Eliminar posición por ID
@@ -60,4 +60,4 @@ async def updatePositionById(positionId: int,
 @inject
 async def deletePositionById(positionId: int,
                              positionService: PositionService = Depends(Provide[Container.positionService])):
-    return positionService.deleteById(positionId)
+    return positionService.delete(positionService.getById(positionId))

@@ -1,6 +1,8 @@
-from typing import Optional
 from pydantic import BaseModel
 from security.resource.response.user_response import UserResponse
+
+class AuthResponseForVerify(BaseModel):
+    email_to_verify: str
 
 class AuthResponse(BaseModel):
     access_token: str

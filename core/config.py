@@ -1,4 +1,5 @@
 import logging
+import os
 from fastapi_mail import ConnectionConfig
 from pydantic import DirectoryPath, Field, ValidationError
 from pydantic_settings import BaseSettings
@@ -43,7 +44,7 @@ class Settings(BaseSettings):
     cloudinary_secure: bool = Field(True, env="CLOUDINARY_SECURE")
 
     class Config:
-        env_file = ".env"
+        env_file = ".env.prod" if os.getenv("ENV") == "prod" else ".env"
 
 try:
     settings = Settings()

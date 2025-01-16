@@ -16,7 +16,7 @@ class Movement(SQLModel, table=True):
 
     # Relaciones
     robot: Optional["Robot"] = Relationship(back_populates="movements")
-    positions: List["Position"] = Relationship(back_populates="movement")
+    positions: List["Position"] = Relationship(back_populates="movement", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
     # coord_x: Optional[int] = Field(nullable=False, default=0)
     # coord_y: Optional[int] = Field(nullable=False, default=0)
