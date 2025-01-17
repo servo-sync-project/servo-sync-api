@@ -93,6 +93,8 @@ class RobotService:
         if robot:
             robot.is_connected_broker = isConnected
             self.repository.save(robot)
+        else:
+            logger.error(f"No se encontró el robot con UUID: {uniqueUid}")
     
     def delete(self, robotToDelete: Robot):
         self.repository.deleteById(robotToDelete.id)
@@ -108,7 +110,7 @@ class RobotService:
 
         topic = f"robot/{robot.unique_uid}/access/positions"
         mqttClient.publish(topic, json.dumps(message))
-        print(f"Data sent to topic {topic}")
+        logger.info(f"Data sent to topic {topic}")
         
         # Actualizar la posición actual del robot en la base de datos
         self.updateCurrentPosition(robot, robot.initial_position)
@@ -123,7 +125,7 @@ class RobotService:
 
         topic = f"robot/{robot.unique_uid}/access/positions"
         mqttClient.publish(topic, json.dumps(message))
-        print(f"Data sent to topic {topic}")
+        logger.info(f"Data sent to topic {topic}")
         
         # Actualizar la posición actual del robot en la base de datos
         robot = self.updateCurrentPosition(robot, robot.initial_position)
@@ -138,7 +140,7 @@ class RobotService:
 
         topic = f"robot/{robot.unique_uid}/access/positions"
         mqttClient.publish(topic, json.dumps(message))
-        print(f"Data sent to topic {topic}")
+        logger.info(f"Data sent to topic {topic}")
 
         return robot
     
@@ -152,7 +154,7 @@ class RobotService:
 
         topic = f"robot/{robot.unique_uid}/access/positions"
         mqttClient.publish(topic, json.dumps(message))
-        print(f"Data sent to topic {topic}")
+        logger.info(f"Data sent to topic {topic}")
         
         self.updateCurrentPosition(robot, PositionJson(delay=positions[-1].delay, angles=json.loads(positions[-1].angles)).model_dump_json())
 
@@ -166,7 +168,7 @@ class RobotService:
 
         topic = f"robot/{robot.unique_uid}/access/positions"
         mqttClient.publish(topic, json.dumps(message))
-        print(f"Data sent to topic {topic}")
+        logger.info(f"Data sent to topic {topic}")
         
         self.updateCurrentPosition(robot, PositionJson(delay=position.delay, angles=json.loads(position.angles)).model_dump_json())
 

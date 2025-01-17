@@ -10,7 +10,9 @@ class PositionJson(BaseModel):
     def validate_angles(cls, value):
         if not isinstance(value, list):
             raise ValueError('Angles must be a list of integers.')
-        if value and any(not 0 <= angle <= 180 for angle in value):
+        if any(not isinstance(angle, int) for angle in value):
+            raise ValueError('All angles must be integers.')
+        if any(not 0 <= angle <= 180 for angle in value):
             raise ValueError('Each angle must be between 0 and 180.')
         return value
 

@@ -14,7 +14,7 @@ class LoginUserRequest(BaseModel):
 
 class SendEmailRequest(BaseModel):
     email: EmailStr
-
+    
 class EmailVerificationRequest(BaseModel):
     verification_uuid: str
 
