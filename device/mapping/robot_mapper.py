@@ -1,3 +1,4 @@
+import uuid
 from device.domain.model.robot import Robot
 from device.domain.model.position_json import loadPosition
 from device.resource.request.robot_request import CreateRobotRequest
@@ -6,7 +7,8 @@ from device.resource.response.robot_response import RobotResponse, RobotResponse
 class RobotMapper:
     @staticmethod
     def createRequestToModel(request: CreateRobotRequest, currentUserId: int) -> Robot:
-        return Robot(botname=request.botname,
+        return Robot(unique_uid=str(uuid.uuid4()),
+                     botname=request.botname,
                      description=request.description,
                      user_id=currentUserId)
     

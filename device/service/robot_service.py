@@ -33,11 +33,9 @@ class RobotService:
         if len(self.repository.findAllByUserId(robot.user_id)) >= 2:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The user reached its limit with 2 robots")
         
-        uniqueUuid = str(uuid.uuid4())
-        while self.repository.findByUniqueUid(uniqueUuid):
-            uniqueUuid = str(uuid.uuid4())
+        while self.repository.findByUniqueUid(robot.unique_uid):
+            robot.unique_uid = str(uuid.uuid4())
         
-        robot.unique_uid = uniqueUuid
         return self.repository.save(robot)
     
     def getById(self, robotId: int):
@@ -113,23 +111,20 @@ class RobotService:
         logger.info(f"Data sent to topic {topic}")
         
         # Actualizar la posición actual del robot en la base de datos
-        self.updateCurrentPosition(robot, robot.initial_position)
-        return True
+        return self.updateCurrentPosition(robot, robot.initial_position)
     
-    def updateAndmoveToInitialPosition(self, robot: Robot, newInitialPosition: str):
-        robot = self.updateInitialPosition(robot, newInitialPosition)
+    # def updateAndmoveToInitialPosition(self, robot: Robot, newInitialPosition: str):
+    #     robot = self.updateInitialPosition(robot, newInitialPosition)
         
-        initialPosition = loadPosition(robot.initial_position)
+    #     initialPosition = loadPosition(robot.initial_position)
 
-        message = [{"delay": initialPosition.delay, "angles": initialPosition.angles}]
+    #     message = [{"delay": initialPosition.delay, "angles": initialPosition.angles}]
 
-        topic = f"robot/{robot.unique_uid}/access/positions"
-        mqttClient.publish(topic, json.dumps(message))
-        logger.info(f"Data sent to topic {topic}")
+    #     topic = f"robot/{robot.unique_uid}/access/positions"
+    #     mqttClient.publish(topic, json.dumps(message))
+    #     logger.info(f"Data sent to topic {topic}")
         
-        # Actualizar la posición actual del robot en la base de datos
-        robot = self.updateCurrentPosition(robot, robot.initial_position)
-        return robot
+    #     return self.updateCurrentPosition(robot, robot.initial_position)
     
     def updateAndMoveToCurrentPosition(self, robot: Robot, newCurrentPosition: str):
         robot = self.updateCurrentPosition(robot, newCurrentPosition)
@@ -145,7 +140,7 @@ class RobotService:
         return robot
     
     # ejecutar movimmientos por su nombre
-    def executeMovementById(self, robot: Robot, movementId: int): #robotId: int, movementName: str):            
+    def executeMovement(self, robot: Robot, movementId: int): #robotId: int, movementName: str):            
         positions = self.positionRepository.findAllByMovementId(movementId) 
         if not positions:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No positions found")
@@ -156,12 +151,10 @@ class RobotService:
         mqttClient.publish(topic, json.dumps(message))
         logger.info(f"Data sent to topic {topic}")
         
-        self.updateCurrentPosition(robot, PositionJson(delay=positions[-1].delay, angles=json.loads(positions[-1].angles)).model_dump_json())
-
-        return True
+        return self.updateCurrentPosition(robot, PositionJson(delay=positions[-1].delay, angles=json.loads(positions[-1].angles)).model_dump_json())
     
     # ejecutar movimmientos por su nombre
-    def moveToPositionById(self, robot: Robot, positionId: int): #robotId: int, movementName: str, positionSequence: int):
+    def moveToPosition(self, robot: Robot, positionId: int): #robotId: int, movementName: str, positionSequence: int):
         position = self.positionRepository.findById(positionId)
         
         message = [{"delay": position.delay, "angles": json.loads(position.angles)}]
@@ -170,9 +163,7 @@ class RobotService:
         mqttClient.publish(topic, json.dumps(message))
         logger.info(f"Data sent to topic {topic}")
         
-        self.updateCurrentPosition(robot, PositionJson(delay=position.delay, angles=json.loads(position.angles)).model_dump_json())
-
-        return True
+        return self.updateCurrentPosition(robot, PositionJson(delay=position.delay, angles=json.loads(position.angles)).model_dump_json())
     
     # ---------------- METODOS TRANSACCIONALES PARA EL ALMACENAMIENTO LOCAL DEL ROBOT-----------------
     def saveMovementInLocal(self, robot: Robot, movementId: int):

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import logging
+import time
 import debugpy
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,7 +63,15 @@ def on_message(client, userdata, msg):
         logger.info(f"comando de almacenamiento recibido para robot {robotToken}: {msg.payload.decode()}")
 
 def on_disconnect(client, userdata, rc):
-    logger.info("Desconectado del broker MQTT")
+    logger.warning("Desconectado del broker MQTT. Intentando reconectar...")
+    while True:
+        try:
+            client.reconnect()
+            logger.info("Reconexión exitosa al broker MQTT")
+            return
+        except Exception as e:
+            logger.error(f"Error al intentar reconectar: {e}")
+            time.sleep(5)
 
 # Lifespan handler para manejar el ciclo de vida de la aplicación
 @asynccontextmanager

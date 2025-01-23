@@ -12,7 +12,7 @@ class Robot(SQLModel, table=True):
     __tablename__ = "robots"
 
     id: Optional[int] = Field(primary_key=True)
-    unique_uid: Optional[str] = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
+    unique_uid: str = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
     botname: str = Field(nullable=False, sa_column_kwargs={"unique": True, "nullable": False})
     description: str = Field(nullable=False)
     image_url: Optional[str] = Field(nullable=True)
