@@ -17,4 +17,5 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Exponer el puerto y definir el punto de entrada
 EXPOSE 8000
-ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+ENTRYPOINT uvicorn main:app --host 0.0.0.0 --port $PORT --proxy-headers
+# ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
