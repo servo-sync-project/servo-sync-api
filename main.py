@@ -113,21 +113,21 @@ def create_app():
         lifespan=lifespan
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.origin_url,
+        # allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     app.include_router(AuthController)
     app.include_router(UserController)
     app.include_router(RobotController)
     app.include_router(ServoGroupController)
     app.include_router(MovementController)
     app.include_router(PositionController)
-    
-    app.add_middleware(
-        CORSMiddleware,
-        #allow_origins=settings.origin_url,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
     
     return app
 
