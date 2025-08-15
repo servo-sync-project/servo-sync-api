@@ -115,8 +115,8 @@ def create_app():
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.origin_url,
-        # allow_origins=["*"],
+        # allow_origins=settings.origin_url,
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
