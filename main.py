@@ -4,6 +4,7 @@ import time
 import debugpy
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.responses import RedirectResponse
 from sqlmodel import SQLModel
 import uvicorn
@@ -113,6 +114,8 @@ def create_app():
         lifespan=lifespan
     )
 
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+    
     app.add_middleware(
         CORSMiddleware,
         # allow_origins=settings.origin_url,
